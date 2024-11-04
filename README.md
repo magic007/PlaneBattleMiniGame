@@ -32,3 +32,12 @@
 ├── project.config.json                        // 项目配置
 └── project.private.config.json                // 项目个人配置
 ```
+
+## 引入 Bmob SDK
+
+```
+// 引入 Bmob SDK
+import Bmob from './libs/Bmob-1.0.0.min.js'; // 请根据实际路径调整
+
+// 初始化 Bmob
+Bmob.initialize("您的应用ID", "您的REST API密钥");

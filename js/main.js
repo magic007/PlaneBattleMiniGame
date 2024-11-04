@@ -5,6 +5,7 @@ import BackGround from './runtime/background'; // 导入背景类
 import GameInfo from './runtime/gameinfo'; // 导入游戏UI类
 import Music from './runtime/music'; // 导入音乐类
 import DataBus from './databus'; // 导入数据类，用于管理游戏状态和数据
+import Bmob from './libs/Bmob-1.7.1.min.js'; // 引入 Bmob SDK
 
 const ENEMY_GENERATE_INTERVAL = 30;
 const ctx = canvas.getContext('2d'); // 获取canvas的2D绘图上下文;
@@ -22,6 +23,8 @@ export default class Main {
   gameInfo = new GameInfo(); // 创建游戏UI显示
 
   constructor() {
+
+
     // 当开始游戏被点击时，重新开始游戏
     this.gameInfo.on('restart', this.start.bind(this));
 
@@ -29,10 +32,21 @@ export default class Main {
     this.start();
   }
 
+
   /**
    * 开始或重启游戏
    */
   start() {
+    // 初始化 Bmob
+    Bmob.initialize("1d9e65648f55a699b52117afee8899ef", "28858dc4bbe7ba62f2a84cdfba915de6"); // 请根据实际情况替换
+
+    // 一键登录
+    Bmob.User.auth().then(res => {
+      console.log(res);
+      console.log('一键登陆成功');
+    }).catch(err => {
+      console.log(err);
+    });
     GameGlobal.databus.reset(); // 重置数据
     this.player.init(); // 重置玩家状态
     cancelAnimationFrame(this.aniId); // 清除上一局的动画
@@ -44,7 +58,7 @@ export default class Main {
    * 帧数取模定义成生成的频率
    */
   enemyGenerate() {
-    // 每30帧生成一个敌机
+    // 每30帧生成个敌机
     if (GameGlobal.databus.frame % ENEMY_GENERATE_INTERVAL === 0) {
       const enemy = GameGlobal.databus.pool.getItemByClass('enemy', Enemy); // 从对象池获取敌机实例
       enemy.init(); // 初始化敌机
@@ -132,3 +146,4 @@ export default class Main {
     this.aniId = requestAnimationFrame(this.loop.bind(this));
   }
 }
+

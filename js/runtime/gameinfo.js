@@ -15,8 +15,10 @@ export default class GameInfo extends Emitter {
       endY: SCREEN_HEIGHT / 2 - 100 + 255,
     };
 
+    this.scoreSaved = false; // 添加标志，跟踪得分是否已保存
+
     // 绑定触摸事件
-    wx.onTouchStart(this.touchEventHandler.bind(this))
+    wx.onTouchStart(this.touchEventHandler.bind(this));
   }
 
   setFont(ctx) {
@@ -30,12 +32,40 @@ export default class GameInfo extends Emitter {
     // 游戏结束时停止帧循环并显示游戏结束画面
     if (GameGlobal.databus.isGameOver) {
       this.renderGameOver(ctx, GameGlobal.databus.score); // 绘制游戏结束画面
+
+      // 仅在得分未保存时保存得分
+      if (!this.scoreSaved) {
+        this.saveScoreToBmob(GameGlobal.databus.score); // 在游戏结束时保存得分
+        this.scoreSaved = true; // 设置标志，表示得分已保存
+      }
+    } else {
+      this.scoreSaved = false; // 如果游戏未结束，重置标志
     }
   }
 
   renderGameScore(ctx, score) {
     this.setFont(ctx);
     ctx.fillText(score, 10, 30);
+  }
+
+  saveScoreToBmob(score) {
+    const GameScores = wx.Bmob.Query("GameScores"); // 使用 wx.Bmob.Query 创建查询对象
+    const currentUser = wx.Bmob.User.current(); // 获取当前用户信息
+
+    if (currentUser) {
+      const userId = currentUser.objectId; // 获取用户的 objectId
+
+      GameScores.set("score", score);
+      GameScores.set("userId", userId); // 假设您在表中有一个 userId 字段
+
+      GameScores.save().then((res) => {
+        console.log('得分保存成功', res);
+      }).catch((err) => {
+        console.log('得分保存失败', err);
+      });
+    } else {
+      console.log('未登录用户，无法保存得分');
+    }
   }
 
   renderGameOver(ctx, score) {
