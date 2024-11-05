@@ -28,15 +28,40 @@ export default class Main {
     // 当开始游戏被点击时，重新开始游戏
     this.gameInfo.on('restart', this.start.bind(this));
 
+    // 显示健���游戏忠告
+    this.showHealthAdvice();
+
+
     // 开始游戏
-    this.start();
+    // this.start();
   }
 
+  showHealthAdvice() {
+    wx.showModal({
+      title: '健康游戏忠告',
+      content: '健康游戏，快乐生活。合理安排时间，享受游戏乐趣，避免沉迷。',
+      showCancel: false, // 不显示取消按钮
+      success: (res) => {
+        if (res.confirm) {
+          console.log('用户确认了忠告');
+          // 这里可以继续游戏的初始化逻辑
+          this.start(); // 开始游戏
+        }
+      }
+    });
+  }
+
+  startGame() {
+    // 游戏开始的逻辑
+    console.log('游戏开始');
+    // 其他游戏初始化代码...
+  }
 
   /**
    * 开始或重启游戏
    */
   start() {
+    console.log('游戏开始'); // 添加调试信息
     // 初始化 Bmob
     Bmob.initialize("1d9e65648f55a699b52117afee8899ef", "28858dc4bbe7ba62f2a84cdfba915de6"); // 请根据实际情况替换
 
@@ -47,6 +72,7 @@ export default class Main {
     }).catch(err => {
       console.log(err);
     });
+
     GameGlobal.databus.reset(); // 重置数据
     this.player.init(); // 重置玩家状态
     cancelAnimationFrame(this.aniId); // 清除上一局的动画
