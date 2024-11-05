@@ -6,6 +6,7 @@ import GameInfo from './runtime/gameinfo'; // 导入游戏UI类
 import Music from './runtime/music'; // 导入音乐类
 import DataBus from './databus'; // 导入数据类，用于管理游戏状态和数据
 import Bmob from './libs/Bmob-1.7.1.min.js'; // 引入 Bmob SDK
+import LevelManager from './base/levelManager'; // 导入关卡管理类
 
 const ENEMY_GENERATE_INTERVAL = 30;
 const ctx = canvas.getContext('2d'); // 获取canvas的2D绘图上下文;
@@ -21,6 +22,8 @@ export default class Main {
   bg = new BackGround(); // 创建背景
   player = new Player(); // 创建玩家
   gameInfo = new GameInfo(); // 创建游戏UI显示
+  levelManager = new LevelManager(); // 初始化关卡管理
+  isLevelCompleteModalVisible = false; // 添加标志，表示弹框是否可见
 
   constructor() {
 
@@ -28,12 +31,12 @@ export default class Main {
     // 当开始游戏被点击时，重新开始游戏
     this.gameInfo.on('restart', this.start.bind(this));
 
-    // 显示健���游戏忠告
+    // 显示健游戏忠告
     this.showHealthAdvice();
 
 
     // 开始游戏
-    // this.start();
+    this.start();
   }
 
   showHealthAdvice() {
@@ -75,20 +78,25 @@ export default class Main {
 
     GameGlobal.databus.reset(); // 重置数据
     this.player.init(); // 重置玩家状态
+    this.levelManager.reset(); // 重置关卡管理器
     cancelAnimationFrame(this.aniId); // 清除上一局的动画
     this.aniId = requestAnimationFrame(this.loop.bind(this)); // 开始新的动画循环
+
+    this.startLevel(); // 开始当前关卡
   }
 
-  /**
-   * 随着帧数变化的敌机生成逻辑
-   * 帧数取模定义成生成的频率
-   */
-  enemyGenerate() {
-    // 每30帧生成个敌机
-    if (GameGlobal.databus.frame % ENEMY_GENERATE_INTERVAL === 0) {
-      const enemy = GameGlobal.databus.pool.getItemByClass('enemy', Enemy); // 从对象池获取敌机实例
-      enemy.init(); // 初始化敌机
-      GameGlobal.databus.enemys.push(enemy); // 将敌机添加到敌机数组中
+  startLevel() {
+    const level = this.levelManager.getCurrentLevel();
+    console.log(`开始关卡 ${this.levelManager.currentLevel + 1}: 敌人数量 ${level.enemies}`);
+    this.enemyGenerate(level); // 生成敌人
+  }
+
+  enemyGenerate(level) {
+    // 根据关卡设置生成敌人
+    for (let i = 0; i < level.enemies; i++) {
+      const enemy = GameGlobal.databus.pool.getItemByClass(level.enemyType, Enemy); // 根据类型获取敌人
+      enemy.init(); // 初始化敌人
+      GameGlobal.databus.enemys.push(enemy); // 添加到敌人数组
     }
   }
 
@@ -105,7 +113,7 @@ export default class Main {
         if (enemy.isCollideWith(bullet)) {
           enemy.destroy(); // 销毁敌机
           bullet.destroy(); // 销毁子弹
-          GameGlobal.databus.score += 1; // 增加分数
+          GameGlobal.databus.score += 1; // 增加数
           break; // 退出循环
         }
       }
@@ -159,8 +167,8 @@ export default class Main {
     // 更新所有敌机
     GameGlobal.databus.enemys.forEach((item) => item.update());
 
-    this.enemyGenerate(); // 生成敌机
     this.collisionDetection(); // 检测碰撞
+    this.checkLevelCompletion(); // 检查关卡完成
   }
 
   // 实现游戏帧循环
@@ -170,6 +178,28 @@ export default class Main {
 
     // 请求下一帧动画
     this.aniId = requestAnimationFrame(this.loop.bind(this));
+  }
+
+  checkLevelCompletion() {
+    // 检查当前关卡的敌机数量是否为零
+    if (GameGlobal.databus.enemys.length === 0 && !this.isLevelCompleteModalVisible) {
+        console.log(`关卡 ${this.levelManager.currentLevel + 1} 完成!`);
+        this.isLevelCompleteModalVisible = true; // 设置标志为 true，表示弹框正在显示
+        
+        // 提示玩家进入下一关
+        wx.showModal({
+            title: '关卡完成',
+            content: `恭喜！你已完成关卡 ${this.levelManager.currentLevel + 1}，点击确认进入下一关！`,
+            showCancel: false, // 不显示取消按钮
+            success: (res) => {
+                if (res.confirm) {
+                    this.levelManager.nextLevel(); // 进入下一个关卡
+                    this.startLevel(); // 开始新关卡
+                }
+                this.isLevelCompleteModalVisible = false; // 重置标志
+            }
+        });
+    }
   }
 }
 

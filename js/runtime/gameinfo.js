@@ -134,7 +134,7 @@ export default class GameInfo extends Emitter {
         clientY <= this.btnArea.endY
       ) {
         // 调用重启游戏的回调函数
-        this.emit('restart');
+        this.emit('restart'); // 触发重启事件
       }
     }
   }
