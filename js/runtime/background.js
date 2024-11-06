@@ -18,6 +18,13 @@ export default class BackGround extends Sprite {
     this.top = 0;
   }
 
+  setBackground(imagePath) {
+    console.log("imagePath",imagePath);
+    
+    this.img.src = imagePath; // 设置背景图像路径
+    console.log(`设置背景为: ${imagePath}`); // 输出当前设置的背景路径
+  }
+
   update() {
     if (GameGlobal.databus.isGameOver) {
       return;

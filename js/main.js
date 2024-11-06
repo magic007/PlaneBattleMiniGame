@@ -35,8 +35,8 @@ export default class Main {
     this.showHealthAdvice();
 
 
-    // 开始游戏
-    this.start();
+    // 开始游戏,这里改为健康游戏忠告后开始
+    // this.start();
   }
 
   showHealthAdvice() {
@@ -88,6 +88,10 @@ export default class Main {
   startLevel() {
     const level = this.levelManager.getCurrentLevel();
     console.log(`开始关卡 ${this.levelManager.currentLevel + 1}: 敌人数量 ${level.enemies}`);
+    
+    // 设置背景
+    this.bg.setBackground(level.background); // 设置当前关卡的背景
+
     this.enemyGenerate(level); // 生成敌人
   }
 

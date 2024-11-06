@@ -2,9 +2,13 @@ export default class LevelManager {
     constructor() {
         this.currentLevel = 0; // 当前关卡
         this.levels = [
-            { enemies: 5, enemyType: 'easy', interval: 30 },
-            { enemies: 10, enemyType: 'medium', interval: 25 },
-            { enemies: 15, enemyType: 'hard', interval: 20 },
+            { enemies: 5, enemyType: 'easy', interval: 30, background: 'images/bg1.jpg' },
+            { enemies: 7, enemyType: 'easy', interval: 28, background: 'images/bg2.jpg' },
+            { enemies: 9, enemyType: 'medium', interval: 26, background: 'images/bg3.jpg' },
+            { enemies: 11, enemyType: 'medium', interval: 24, background: 'images/bg4.jpg' },
+            { enemies: 13, enemyType: 'hard', interval: 22, background: 'images/bg5.jpg' },
+            { enemies: 15, enemyType: 'hard', interval: 20, background: 'images/bg6.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg7.jpg' },
             // 可以继续添加更多关卡
         ];
     }
