@@ -9,6 +9,16 @@ export default class LevelManager {
             { enemies: 13, enemyType: 'hard', interval: 22, background: 'images/bg5.jpg' },
             { enemies: 15, enemyType: 'hard', interval: 20, background: 'images/bg6.jpg' },
             { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg7.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg8.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg9.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg10.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg11.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg12.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg13.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg14.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg15.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg16.jpg' },
+            { enemies: 17, enemyType: 'hard', interval: 18, background: 'images/bg17.jpg' },
             // 可以继续添加更多关卡
         ];
     }
@@ -25,6 +35,7 @@ export default class LevelManager {
     }
 
     reset() {
-        this.currentLevel = 0; // 重置到第一个关卡
+        this.currentLevel =0; // 重置到第一个关卡
+        GameGlobal.databus.currentLevel = 1
     }
 } 

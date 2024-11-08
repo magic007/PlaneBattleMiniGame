@@ -28,6 +28,7 @@ export default class GameInfo extends Emitter {
 
   render(ctx) {
     this.renderGameScore(ctx, GameGlobal.databus.score); // 绘制当前分数
+    this.renderCurrentLevel(ctx, GameGlobal.databus.currentLevel); // 绘制当前关卡
 
     // 游戏结束时停止帧循环并显示游戏结束画面
     if (GameGlobal.databus.isGameOver) {
@@ -45,7 +46,12 @@ export default class GameInfo extends Emitter {
 
   renderGameScore(ctx, score) {
     this.setFont(ctx);
-    ctx.fillText(score, 10, 30);
+    ctx.fillText(`得分:${score}`, 10, 30);
+  }
+
+  renderCurrentLevel(ctx, level) {
+    this.setFont(ctx);
+    ctx.fillText(`当前关卡: ${level}`, 10, 60); // 在分数下方绘制当前关卡
   }
 
   saveScoreToBmob(score) {

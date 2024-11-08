@@ -12,7 +12,8 @@ const BACKGROUND_SPEED = 2;
  */
 export default class BackGround extends Sprite {
   constructor() {
-    const bgIndex = Math.floor(Math.random() * 7) + 1;
+    // const bgIndex = Math.floor(Math.random() * 7) + 1;
+    const bgIndex = 5
     BACKGROUND_IMAGE_SRC = `images/bg${bgIndex}.jpg`;
     super(BACKGROUND_IMAGE_SRC, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
     this.top = 0;

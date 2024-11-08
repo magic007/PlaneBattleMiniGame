@@ -87,6 +87,7 @@ export default class Main {
 
   startLevel() {
     const level = this.levelManager.getCurrentLevel();
+    GameGlobal.databus.currentLevel = this.levelManager.currentLevel + 1
     console.log(`开始关卡 ${this.levelManager.currentLevel + 1}: 敌人数量 ${level.enemies}`);
     
     // 设置背景

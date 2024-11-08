@@ -13,6 +13,7 @@ export default class DataBus {
   animations = []; // 存储动画
   frame = 0; // 当前帧数
   score = 0; // 当前分数
+  currentLevel = 1 //当前关卡
   isGameOver = false; // 游戏是否结束
   pool = new Pool(); // 初始化对象池
 
