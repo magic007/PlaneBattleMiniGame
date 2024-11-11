@@ -23,46 +23,28 @@ export default class Main {
   player = new Player(); // 创建玩家
   gameInfo = new GameInfo(); // 创建游戏UI显示
   levelManager = new LevelManager(); // 初始化关卡管理
-  isLevelCompleteModalVisible = false; // 添加标志，表示弹框是否可见
 
   constructor() {
-
-
     // 当开始游戏被点击时，重新开始游戏
     this.gameInfo.on('restart', this.start.bind(this));
 
-    // 显示健游戏忠告
-    this.showHealthAdvice();
+    // 显示健康游戏忠告
+    this.gameInfo.showHealthAdviceFlag = true; // 设置为 true 以显示忠告
 
-
-    // 开始游戏,这里改为健康游戏忠告后开始
-    // this.start();
+    // 初始化游戏
+    this.init();
   }
 
-  showHealthAdvice() {
-    wx.showModal({
-      title: '健康游戏忠告',
-      content: '健康游戏，快乐生活。合理安排时间，享受游戏乐趣，避免沉迷。',
-      showCancel: false, // 不显示取消按钮
-      success: (res) => {
-        if (res.confirm) {
-          console.log('用户确认了忠告');
-          // 这里可以继续游戏的初始化逻辑
-          this.start(); // 开始游戏
-        }
-      }
-    });
+  init() {
+    // 初始化游戏状态
+    GameGlobal.databus.reset();
+    this.player.init();
+    this.levelManager.reset();
+    
+    // 开始游戏循环
+    this.aniId = requestAnimationFrame(this.loop.bind(this));
   }
 
-  startGame() {
-    // 游戏开始的逻辑
-    console.log('游戏开始');
-    // 其他游戏初始化代码...
-  }
-
-  /**
-   * 开始或重启游戏
-   */
   start() {
     console.log('游戏开始'); // 添加调试信息
     // 初始化 Bmob
@@ -79,15 +61,19 @@ export default class Main {
     GameGlobal.databus.reset(); // 重置数据
     this.player.init(); // 重置玩家状态
     this.levelManager.reset(); // 重置关卡管理器
-    cancelAnimationFrame(this.aniId); // 清除上一局的动画
-    this.aniId = requestAnimationFrame(this.loop.bind(this)); // 开始新的动画循环
 
-    this.startLevel(); // 开始当前关卡
+    // 开始第一关
+    this.startLevel();
+
+    // 确保游戏循环继续运行
+    if (!this.aniId) {
+      this.aniId = requestAnimationFrame(this.loop.bind(this));
+    }
   }
 
   startLevel() {
     const level = this.levelManager.getCurrentLevel();
-    GameGlobal.databus.currentLevel = this.levelManager.currentLevel + 1
+    GameGlobal.databus.currentLevel = this.levelManager.currentLevel + 1;
     console.log(`开始关卡 ${this.levelManager.currentLevel + 1}: 敌人数量 ${level.enemies}`);
     
     // 设置背景
@@ -97,6 +83,9 @@ export default class Main {
   }
 
   enemyGenerate(level) {
+    // 清空现有敌机
+    GameGlobal.databus.enemys = [];
+    
     // 根据关卡设置生成敌人
     for (let i = 0; i < level.enemies; i++) {
       const enemy = GameGlobal.databus.pool.getItemByClass(level.enemyType, Enemy); // 根据类型获取敌人
@@ -147,8 +136,13 @@ export default class Main {
 
     this.bg.render(ctx); // 绘制背景
     this.player.render(ctx); // 绘制玩家飞机
-    GameGlobal.databus.bullets.forEach((item) => item.render(ctx)); // 绘制所有子弹
-    GameGlobal.databus.enemys.forEach((item) => item.render(ctx)); // 绘制所有敌机
+    
+    // 只有在健康忠告确认后才渲染子弹和敌机
+    if (!this.gameInfo.showHealthAdviceFlag) {
+      GameGlobal.databus.bullets.forEach((item) => item.render(ctx)); // 绘制所有子弹
+      GameGlobal.databus.enemys.forEach((item) => item.render(ctx)); // 绘制所有敌机
+    }
+
     this.gameInfo.render(ctx); // 绘制游戏UI
     GameGlobal.databus.animations.forEach((ani) => {
       if (ani.isPlaying) {
@@ -166,44 +160,48 @@ export default class Main {
     }
 
     this.bg.update(); // 更新背景
-    this.player.update(); // 更新玩家
-    // 更新所有子弹
-    GameGlobal.databus.bullets.forEach((item) => item.update());
-    // 更新所有敌机
-    GameGlobal.databus.enemys.forEach((item) => item.update());
 
-    this.collisionDetection(); // 检测碰撞
-    this.checkLevelCompletion(); // 检查关卡完成
+    // 只有在健康忠告确认后才更新游戏逻辑
+    if (!this.gameInfo.showHealthAdviceFlag) {
+      this.player.update(); // 更新玩家
+      // 更新所有子弹
+      GameGlobal.databus.bullets.forEach((item) => item.update());
+      // 更新所有敌机
+      GameGlobal.databus.enemys.forEach((item) => item.update());
+
+      this.collisionDetection(); // 检测碰撞
+      this.checkLevelCompletion(); // 检查关卡完成
+    }
   }
 
   // 实现游戏帧循环
   loop() {
-    this.update(); // 更新游戏逻辑
-    this.render(); // 渲染游戏画面
-
-    // 请求下一帧动画
+    this.update();
+    this.render();
     this.aniId = requestAnimationFrame(this.loop.bind(this));
   }
 
   checkLevelCompletion() {
-    // 检查当前关卡的敌机数量是否为零
-    if (GameGlobal.databus.enemys.length === 0 && !this.isLevelCompleteModalVisible) {
-        console.log(`关卡 ${this.levelManager.currentLevel + 1} 完成!`);
-        this.isLevelCompleteModalVisible = true; // 设置标志为 true，表示弹框正在显示
-        
-        // 提示玩家进入下一关
-        wx.showModal({
-            title: '关卡完成',
-            content: `恭喜！你已完成关卡 ${this.levelManager.currentLevel + 1}，点击确认进入下一关！`,
-            showCancel: false, // 不显示取消按钮
-            success: (res) => {
-                if (res.confirm) {
-                    this.levelManager.nextLevel(); // 进入下一个关卡
-                    this.startLevel(); // 开始新关卡
-                }
-                this.isLevelCompleteModalVisible = false; // 重置标志
-            }
-        });
+    // 检查当前关卡的敌机数量是否为零，并且确保不在显示健康忠告时检查
+    if (!this.gameInfo.showHealthAdviceFlag && 
+        GameGlobal.databus.enemys.length === 0 && 
+        !this.isLevelCompleteModalVisible) {
+      console.log(`关卡 ${this.levelManager.currentLevel + 1} 完成!`);
+      this.isLevelCompleteModalVisible = true; // 设置标志为 true，表示弹框正在显示
+      
+      // 提示玩家进入下一关
+      wx.showModal({
+        title: '关卡完成',
+        content: `恭喜！你已完成关卡 ${this.levelManager.currentLevel + 1}，点击确认进入下一关！`,
+        showCancel: false, // 不显示取消按钮
+        success: (res) => {
+          if (res.confirm) {
+            this.levelManager.nextLevel(); // 进入下一个关卡
+            this.startLevel(); // 开始新关卡
+          }
+          this.isLevelCompleteModalVisible = false; // 重置标志
+        }
+      });
     }
   }
 }

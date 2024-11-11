@@ -16,6 +16,7 @@ export default class GameInfo extends Emitter {
     };
 
     this.scoreSaved = false; // 添加标志，跟踪得分是否已保存
+    this.showHealthAdviceFlag = true; // 添加标志，控制是否显示健康游戏忠告
 
     // 绑定触摸事件
     wx.onTouchStart(this.touchEventHandler.bind(this));
@@ -29,6 +30,11 @@ export default class GameInfo extends Emitter {
   render(ctx) {
     this.renderGameScore(ctx, GameGlobal.databus.score); // 绘制当前分数
     this.renderCurrentLevel(ctx, GameGlobal.databus.currentLevel); // 绘制当前关卡
+
+    // 如果需要显示健康游戏忠告
+    if (this.showHealthAdviceFlag) {
+      this.drawHealthAdvice(ctx); // 绘制健康游戏忠告
+    }
 
     // 游戏结束时停止帧循环并显示游戏结束画面
     if (GameGlobal.databus.isGameOver) {
@@ -127,8 +133,93 @@ export default class GameInfo extends Emitter {
     );
   }
 
+  // ... existing code ...
+
+  drawHealthAdvice(ctx) {
+    this.drawHealthAdviceBackground(ctx);
+    this.drawHealthAdviceText(ctx);
+    this.drawHealthAdviceButton(ctx);
+  }
+
+  drawHealthAdviceBackground(ctx) {
+    ctx.drawImage(
+      atlas, // 图像源
+      270, // 源图像的x坐标
+      120, // 源图像的y坐标
+      119, // 源图像的宽度
+      108, // 源图像的高度
+      SCREEN_WIDTH / 2 - 150, // 目标图像的x坐标
+      SCREEN_HEIGHT / 2 - 100, // 目标图像的y坐标
+      300, // 目标图像的宽度
+      300 // 目标图像的高度
+    );
+  }
+
+  drawHealthAdviceText(ctx) {
+    this.setFont(ctx);
+
+    // 绘制标题
+    ctx.fillText(
+      '健康游戏忠告',
+      SCREEN_WIDTH / 2 - 60,
+      SCREEN_HEIGHT / 2 - 100 + 50
+    );
+
+    // 绘制忠告内容
+    ctx.fillText(
+      '健康游戏，快乐生活。',
+      SCREEN_WIDTH / 2 - 80,
+      SCREEN_HEIGHT / 2 - 100 + 90+8
+    );
+    ctx.fillText(
+      '合理安排时间，享受游戏乐趣', // 文本内容
+      SCREEN_WIDTH / 2 - 160+24, // x坐标，调整以居中
+      SCREEN_HEIGHT / 2 - 100 + 120+8 // y坐标，调整以居中
+    );
+    ctx.fillText(
+      '避免沉迷。',
+      SCREEN_WIDTH / 2 - 40,
+      SCREEN_HEIGHT / 2 - 100 + 150+8
+    );
+  }
+
+  drawHealthAdviceButton(ctx) {
+    ctx.drawImage(
+      atlas,
+      120,
+      6,
+      39,
+      24,
+      SCREEN_WIDTH / 2 - 60,
+      SCREEN_HEIGHT / 2 - 100 + 180,
+      120,
+      40
+    );
+
+    ctx.fillText(
+      '开始游戏',
+      SCREEN_WIDTH / 2 - 40,
+      SCREEN_HEIGHT / 2 - 100 + 205
+    );
+  }
+
+
   touchEventHandler(event) {
     const { clientX, clientY } = event.touches[0]; // 获取触摸点的坐标
+
+    // 如果显示健康游戏忠告
+    if (this.showHealthAdviceFlag) {
+      // 使用与重启按钮相同的点击区域判断
+      if (
+        clientX >= this.btnArea.startX &&
+        clientX <= this.btnArea.endX &&
+        clientY >= this.btnArea.startY &&
+        clientY <= this.btnArea.endY
+      ) {
+        this.showHealthAdviceFlag = false; // 隐藏忠告
+        this.emit('restart'); // 触发重启事件
+      }
+    }
 
     // 当前只有游戏结束时展示了UI，所以只处理游戏结束时的状态
     if (GameGlobal.databus.isGameOver) {
