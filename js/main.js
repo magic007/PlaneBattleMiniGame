@@ -23,13 +23,21 @@ export default class Main {
   player = new Player(); // 创建玩家
   gameInfo = new GameInfo(); // 创建游戏UI显示
   levelManager = new LevelManager(); // 初始化关卡管理
+  isPaused = false; // 添加暂停标志
 
   constructor() {
+    GameGlobal.main = this; // 保存 Main 实例到全局
+    this.levelManager = new LevelManager(); // 初始化关卡管理
+    this.gameInfo = new GameInfo(this.levelManager); // 将 levelManager 传递给 GameInfo
+    
     // 当开始游戏被点击时，重新开始游戏
     this.gameInfo.on('restart', this.start.bind(this));
 
     // 显示健康游戏忠告
-    this.gameInfo.showHealthAdviceFlag = true; // 设置为 true 以显示忠告
+    this.gameInfo.showHealthAdviceFlag = true;
+
+    // 添加关卡选择事件监听
+    this.gameInfo.on('selectLevel', this.selectLevel.bind(this));
 
     // 初始化游戏
     this.init();
@@ -103,7 +111,7 @@ export default class Main {
       for (let i = 0, il = GameGlobal.databus.enemys.length; i < il; i++) {
         const enemy = GameGlobal.databus.enemys[i];
 
-        // 如果敌机存活并且发生了发生碰撞
+        // 如果机存活并且发生了发生碰撞
         if (enemy.isCollideWith(bullet)) {
           enemy.destroy(); // 销毁敌机
           bullet.destroy(); // 销毁子弹
@@ -153,24 +161,21 @@ export default class Main {
 
   // 游戏逻辑更新主函数
   update() {
-    GameGlobal.databus.frame++; // 增加帧数
-
-    if (GameGlobal.databus.isGameOver) {
-      return;
+    if (this.isPaused || GameGlobal.databus.isGameOver) {
+      return; // 如果游戏暂停或结束，不更新游戏逻辑
     }
 
-    this.bg.update(); // 更新背景
+    GameGlobal.databus.frame++;
+    this.bg.update();
 
     // 只有在健康忠告确认后才更新游戏逻辑
     if (!this.gameInfo.showHealthAdviceFlag) {
-      this.player.update(); // 更新玩家
-      // 更新所有子弹
+      this.player.update();
       GameGlobal.databus.bullets.forEach((item) => item.update());
-      // 更新所有敌机
       GameGlobal.databus.enemys.forEach((item) => item.update());
 
-      this.collisionDetection(); // 检测碰撞
-      this.checkLevelCompletion(); // 检查关卡完成
+      this.collisionDetection();
+      this.checkLevelCompletion();
     }
   }
 
@@ -202,6 +207,33 @@ export default class Main {
           this.isLevelCompleteModalVisible = false; // 重置标志
         }
       });
+    }
+  }
+
+  selectLevel(levelIndex) {
+    this.resumeGame(); // 选择关卡后恢复游戏
+    
+    // 设置当前关卡
+    this.levelManager.currentLevel = levelIndex;
+    GameGlobal.databus.currentLevel = levelIndex + 1;
+    
+    // 重置游戏状态
+    GameGlobal.databus.reset();
+    this.player.init();
+    
+    // 开始新关卡
+    this.startLevel();
+  }
+
+  // 添加暂停和恢复方法
+  pauseGame() {
+    this.isPaused = true;
+  }
+
+  resumeGame() {
+    // 只有在倒计时结束后才恢复游戏
+    if (!this.gameInfo.showCountdown) {
+      this.isPaused = false;
     }
   }
 }

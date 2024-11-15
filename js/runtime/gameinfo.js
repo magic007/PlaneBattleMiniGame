@@ -5,8 +5,11 @@ const atlas = wx.createImage();
 atlas.src = 'images/Common.png';
 
 export default class GameInfo extends Emitter {
-  constructor() {
+  constructor(levelManager) {
     super();
+
+    this.levelManager = levelManager;
+    this.levelButtons = [];
 
     this.btnArea = {
       startX: SCREEN_WIDTH / 2 - 40,
@@ -15,10 +18,26 @@ export default class GameInfo extends Emitter {
       endY: SCREEN_HEIGHT / 2 - 100 + 255,
     };
 
-    this.scoreSaved = false; // 添加标志，跟踪得分是否已保存
-    this.showHealthAdviceFlag = true; // 添加标志，控制是否显示健康游戏忠告
+    this.levelTextArea = {
+      startX: 10,
+      startY: 40,
+      endX: 150,
+      endY: 70
+    };
 
-    // 绑定触摸事件
+    this.scoreSaved = false;
+    this.showHealthAdviceFlag = true;
+    this.showLevelSelectFlag = false;
+
+    this.levelBtnSize = {
+      width: 120,
+      height: 40,
+      gap: 20
+    };
+
+    this.countdown = 0;
+    this.showCountdown = false;
+
     wx.onTouchStart(this.touchEventHandler.bind(this));
   }
 
@@ -28,25 +47,30 @@ export default class GameInfo extends Emitter {
   }
 
   render(ctx) {
-    this.renderGameScore(ctx, GameGlobal.databus.score); // 绘制当前分数
-    this.renderCurrentLevel(ctx, GameGlobal.databus.currentLevel); // 绘制当前关卡
+    this.renderGameScore(ctx, GameGlobal.databus.score);
+    this.renderCurrentLevel(ctx, GameGlobal.databus.currentLevel);
 
-    // 如果需要显示健康游戏忠告
     if (this.showHealthAdviceFlag) {
-      this.drawHealthAdvice(ctx); // 绘制健康游戏忠告
+      this.drawHealthAdvice(ctx);
     }
 
-    // 游戏结束时停止帧循环并显示游戏结束画面
     if (GameGlobal.databus.isGameOver) {
-      this.renderGameOver(ctx, GameGlobal.databus.score); // 绘制游戏结束画面
+      this.renderGameOver(ctx, GameGlobal.databus.score);
 
-      // 仅在得分未保存时保存得分
       if (!this.scoreSaved) {
-        this.saveScoreToBmob(GameGlobal.databus.score); // 在游戏结束时保存得分
-        this.scoreSaved = true; // 设置标志，表示得分已保存
+        this.saveScoreToBmob(GameGlobal.databus.score);
+        this.scoreSaved = true;
       }
     } else {
-      this.scoreSaved = false; // 如果游戏未结束，重置标志
+      this.scoreSaved = false;
+    }
+
+    if (this.showLevelSelectFlag) {
+      this.drawLevelSelect(ctx);
+    }
+
+    if (this.showCountdown && this.countdown > 0) {
+      this.drawCountdown(ctx);
     }
   }
 
@@ -57,18 +81,19 @@ export default class GameInfo extends Emitter {
 
   renderCurrentLevel(ctx, level) {
     this.setFont(ctx);
-    ctx.fillText(`当前关卡: ${level}`, 10, 60); // 在分数下方绘制当前关卡
+    ctx.fillStyle = '#007AFF';
+    ctx.fillText(`当前关卡: ${level}`, 10, 60);
   }
 
   saveScoreToBmob(score) {
-    const GameScores = wx.Bmob.Query("GameScores"); // 使用 wx.Bmob.Query 创建查询对象
-    const currentUser = wx.Bmob.User.current(); // 获取当前用户信息
+    const GameScores = wx.Bmob.Query("GameScores");
+    const currentUser = wx.Bmob.User.current();
 
     if (currentUser) {
-      const userId = currentUser.objectId; // 获取用户的 objectId
+      const userId = currentUser.objectId;
 
       GameScores.set("score", score);
-      GameScores.set("userId", userId); // 假设您在表中有一个 userId 字段
+      GameScores.set("userId", userId);
 
       GameScores.save().then((res) => {
         console.log('得分保存成功', res);
@@ -133,8 +158,6 @@ export default class GameInfo extends Emitter {
     );
   }
 
-  // ... existing code ...
-
   drawHealthAdvice(ctx) {
     this.drawHealthAdviceBackground(ctx);
     this.drawHealthAdviceText(ctx);
@@ -143,38 +166,36 @@ export default class GameInfo extends Emitter {
 
   drawHealthAdviceBackground(ctx) {
     ctx.drawImage(
-      atlas, // 图像源
-      270, // 源图像的x坐标
-      120, // 源图像的y坐标
-      119, // 源图像的宽度
-      108, // 源图像的高度
-      SCREEN_WIDTH / 2 - 150, // 目标图像的x坐标
-      SCREEN_HEIGHT / 2 - 100, // 目标图像的y坐标
-      300, // 目标图像的宽度
-      300 // 目标图像的高度
+      atlas,
+      270,
+      120,
+      119,
+      108,
+      SCREEN_WIDTH / 2 - 150,
+      SCREEN_HEIGHT / 2 - 100,
+      300,
+      300
     );
   }
 
   drawHealthAdviceText(ctx) {
     this.setFont(ctx);
 
-    // 绘制标题
     ctx.fillText(
       '健康游戏忠告',
       SCREEN_WIDTH / 2 - 60,
       SCREEN_HEIGHT / 2 - 100 + 50
     );
 
-    // 绘制忠告内容
     ctx.fillText(
       '健康游戏，快乐生活。',
       SCREEN_WIDTH / 2 - 80,
       SCREEN_HEIGHT / 2 - 100 + 90+8
     );
     ctx.fillText(
-      '合理安排时间，享受游戏乐趣', // 文本内容
-      SCREEN_WIDTH / 2 - 160+24, // x坐标，调整以居中
-      SCREEN_HEIGHT / 2 - 100 + 120+8 // y坐标，调整以居中
+      '合理安排时间，享受游戏乐趣',
+      SCREEN_WIDTH / 2 - 160+24,
+      SCREEN_HEIGHT / 2 - 100 + 120+8
     );
     ctx.fillText(
       '避免沉迷。',
@@ -203,35 +224,204 @@ export default class GameInfo extends Emitter {
     );
   }
 
+  drawLevelSelect(ctx) {
+    // 绘制半透明黑色背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    const bgImage = wx.createImage();
+    bgImage.src = 'images/ka.jpeg';
+    ctx.drawImage(bgImage, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    const buttonsPerRow = 2;
+    const buttonWidth = this.levelBtnSize.width;
+    const buttonHeight = this.levelBtnSize.height;
+    const gap = this.levelBtnSize.gap;
+    
+    const totalWidth = (buttonWidth * buttonsPerRow) + (gap * (buttonsPerRow - 1));
+    const startX = (SCREEN_WIDTH - totalWidth) / 2;
+    const startY = 100;
+
+    this.levelButtons = [];
+
+    // 绘制关卡按钮
+    this.levelManager.levels.forEach((level, index) => {
+        const row = Math.floor(index / buttonsPerRow);
+        const col = index % buttonsPerRow;
+        
+        const x = startX + (col * (buttonWidth + gap));
+        const y = startY + (row * (buttonHeight + gap));
+
+        this.levelButtons.push({
+            index: index,
+            startX: x,
+            startY: y,
+            endX: x + buttonWidth,
+            endY: y + buttonHeight
+        });
+
+        // 添加阴影效果
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        // 使用白色半透明的按钮背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'; // 白色半透明
+        ctx.fillRect(x, y, buttonWidth, buttonHeight);
+
+        // 添加按钮边框，增加立体感
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, buttonWidth, buttonHeight);
+
+        // 重置阴影效果，避免影响文字
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // 绘制文字时添加文字阴影
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = '#FFFFFF';
+        this.setFont(ctx);
+        ctx.fillText(`第 ${index + 1} 关`, x + 20, y + 25);
+
+        // 再次重置阴影效果
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+    });
+
+    // 添加退出按钮
+    const exitButtonWidth = 100;
+    const exitButtonHeight = 40;
+    const exitButtonX = (SCREEN_WIDTH - exitButtonWidth) / 2;
+    const exitButtonY = SCREEN_HEIGHT - exitButtonHeight - 20;
+
+    this.exitButton = {
+        startX: exitButtonX,
+        startY: exitButtonY,
+        endX: exitButtonX + exitButtonWidth,
+        endY: exitButtonY + exitButtonHeight
+    };
+
+    // 添加退出按钮的阴影效果
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    // 绘制半透明的退出按钮
+    ctx.fillStyle = 'rgba(255, 59, 48, 0.7)';
+    ctx.fillRect(exitButtonX, exitButtonY, exitButtonWidth, exitButtonHeight);
+
+    // 添加退出按钮边框
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.strokeRect(exitButtonX, exitButtonY, exitButtonWidth, exitButtonHeight);
+
+    // 重置阴影效果
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 绘制退出按钮文本（带阴影）
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('退出', exitButtonX + 30, exitButtonY + 25);
+
+    // 最后重置所有效果
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1;
+  }
+
+  drawCountdown(ctx) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.ceil(this.countdown), SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+    ctx.textAlign = 'left'; // 重置文本对齐方式
+    this.setFont(ctx); // 重置字体
+  }
 
   touchEventHandler(event) {
-    const { clientX, clientY } = event.touches[0]; // 获取触摸点的坐标
+    const { clientX, clientY } = event.touches[0];
 
-    // 如果显示健康游戏忠告
+    // 检查是否点击了关卡文本
+    if (!this.showLevelSelectFlag && 
+        clientX >= this.levelTextArea.startX &&
+        clientX <= this.levelTextArea.endX &&
+        clientY >= this.levelTextArea.startY &&
+        clientY <= this.levelTextArea.endY) {
+        this.showLevelSelectFlag = true;
+        GameGlobal.main.pauseGame();
+        return;
+    }
+
+    if (this.showLevelSelectFlag) {
+        // 检查是否点击了退出按钮
+        if (this.exitButton &&
+            clientX >= this.exitButton.startX &&
+            clientX <= this.exitButton.endX &&
+            clientY >= this.exitButton.startY &&
+            clientY <= this.exitButton.endY) {
+            this.showLevelSelectFlag = false;
+            this.showCountdown = true;
+            this.countdown = 3;
+            
+            // 开始倒计时
+            const countdownInterval = setInterval(() => {
+              this.countdown -= 1/60; // 假设60帧每秒
+              if (this.countdown <= 0) {
+                clearInterval(countdownInterval);
+                this.showCountdown = false;
+                GameGlobal.main.resumeGame();
+              }
+            }, 1000/60);
+            
+            return;
+        }
+
+        // 检查是否点击了关卡按钮
+        const clickedButton = this.levelButtons.find(btn => 
+            clientX >= btn.startX &&
+            clientX <= btn.endX &&
+            clientY >= btn.startY &&
+            clientY <= btn.endY
+        );
+
+        if (clickedButton) {
+            this.emit('selectLevel', clickedButton.index);
+            this.showLevelSelectFlag = false;
+        }
+    }
+
     if (this.showHealthAdviceFlag) {
-      // 使用与重启按钮相同的点击区域判断
       if (
         clientX >= this.btnArea.startX &&
         clientX <= this.btnArea.endX &&
         clientY >= this.btnArea.startY &&
         clientY <= this.btnArea.endY
       ) {
-        this.showHealthAdviceFlag = false; // 隐藏忠告
-        this.emit('restart'); // 触发重启事件
+        this.showHealthAdviceFlag = false;
+        this.emit('restart');
       }
     }
 
-    // 当前只有游戏结束时展示了UI，所以只处理游戏结束时的状态
     if (GameGlobal.databus.isGameOver) {
-      // 检查触摸是否在按钮区域内
       if (
         clientX >= this.btnArea.startX &&
         clientX <= this.btnArea.endX &&
         clientY >= this.btnArea.startY &&
         clientY <= this.btnArea.endY
       ) {
-        // 调用重启游戏的回调函数
-        this.emit('restart'); // 触发重启事件
+        this.emit('restart');
       }
     }
   }
