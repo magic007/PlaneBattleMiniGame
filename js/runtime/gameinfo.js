@@ -1,5 +1,7 @@
 import Emitter from '../libs/tinyemitter';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../render';
+import NavigationBar from './navigationBar';  // 导入新类
+import DataManager from '../managers/dataManager';  // 导入 DataManager
 
 const atlas = wx.createImage();
 atlas.src = 'images/Common.png';
@@ -8,21 +10,17 @@ export default class GameInfo extends Emitter {
   constructor(levelManager) {
     super();
 
+    this.navigationBar = new NavigationBar();  // 创建导航栏实例
     this.levelManager = levelManager;
+    this.dataManager = new DataManager();  // 创建 DataManager 实例
     this.levelButtons = [];
+    this.settingButtons = [];
 
     this.btnArea = {
       startX: SCREEN_WIDTH / 2 - 40,
       startY: SCREEN_HEIGHT / 2 - 100 + 180,
       endX: SCREEN_WIDTH / 2 + 50,
       endY: SCREEN_HEIGHT / 2 - 100 + 255,
-    };
-
-    this.levelTextArea = {
-      startX: 10,
-      startY: 40,
-      endX: 150,
-      endY: 70
     };
 
     this.scoreSaved = false;
@@ -38,6 +36,24 @@ export default class GameInfo extends Emitter {
     this.countdown = 0;
     this.showCountdown = false;
 
+    // 添加设置按钮区域
+    this.settingBtnArea = {
+      startX: 10,
+      startY: 80,  // 在当前关卡文本下方
+      endX: 150,
+      endY: 110
+    };
+
+    // 添加设置界面标志
+    this.showSettingFlag = false;
+
+    // 添加设置界面按钮尺寸
+    this.settingBtnSize = {
+      width: 160,
+      height: 40,
+      gap: 20
+    };
+
     wx.onTouchStart(this.touchEventHandler.bind(this));
   }
 
@@ -47,8 +63,8 @@ export default class GameInfo extends Emitter {
   }
 
   render(ctx) {
-    this.renderGameScore(ctx, GameGlobal.databus.score);
-    this.renderCurrentLevel(ctx, GameGlobal.databus.currentLevel);
+    // 渲染导航栏
+    this.navigationBar.render(ctx);
 
     if (this.showHealthAdviceFlag) {
       this.drawHealthAdvice(ctx);
@@ -57,12 +73,23 @@ export default class GameInfo extends Emitter {
     if (GameGlobal.databus.isGameOver) {
       this.renderGameOver(ctx, GameGlobal.databus.score);
 
-      if (!this.scoreSaved) {
-        this.saveScoreToBmob(GameGlobal.databus.score);
-        this.scoreSaved = true;
+      if (!this.scoreSaved && !this.scoreSaveError && !this.isSaving) {
+        this.isSaving = true;
+        this.dataManager.saveScore(GameGlobal.databus.score)
+          .then(() => {
+            this.scoreSaved = true;
+            this.isSaving = false;
+          })
+          .catch(err => {
+            console.error('保存分数失败:', err);
+            this.scoreSaveError = true;
+            this.isSaving = false;
+          });
       }
     } else {
       this.scoreSaved = false;
+      this.scoreSaveError = false;
+      this.isSaving = false;
     }
 
     if (this.showLevelSelectFlag) {
@@ -72,36 +99,9 @@ export default class GameInfo extends Emitter {
     if (this.showCountdown && this.countdown > 0) {
       this.drawCountdown(ctx);
     }
-  }
 
-  renderGameScore(ctx, score) {
-    this.setFont(ctx);
-    ctx.fillText(`得分:${score}`, 10, 30);
-  }
-
-  renderCurrentLevel(ctx, level) {
-    this.setFont(ctx);
-    ctx.fillStyle = '#007AFF';
-    ctx.fillText(`当前关卡: ${level}`, 10, 60);
-  }
-
-  saveScoreToBmob(score) {
-    const GameScores = wx.Bmob.Query("GameScores");
-    const currentUser = wx.Bmob.User.current();
-
-    if (currentUser) {
-      const userId = currentUser.objectId;
-
-      GameScores.set("score", score);
-      GameScores.set("userId", userId);
-
-      GameScores.save().then((res) => {
-        console.log('得分保存成功', res);
-      }).catch((err) => {
-        console.log('得分保存失败', err);
-      });
-    } else {
-      console.log('未登录用户，无法保存得分');
+    if (this.showSettingFlag) {
+      this.drawSettings(ctx);
     }
   }
 
@@ -350,20 +350,191 @@ export default class GameInfo extends Emitter {
     this.setFont(ctx); // 重置字体
   }
 
+  // 添加设置界面绘制方法
+  drawSettings(ctx) {
+    // 绘制半透明黑色背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // 预加载背景图片
+    if (!this.settingsBgImage) {
+        this.settingsBgImage = wx.createImage();
+        this.settingsBgImage.src = 'images/ka.jpeg';
+    }
+
+    // 如果图片已加载完成，则绘制
+    if (this.settingsBgImage.complete) {
+        ctx.drawImage(this.settingsBgImage, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    }
+
+    // 计算按钮位置
+    const buttonWidth = this.settingBtnSize.width;
+    const buttonHeight = this.settingBtnSize.height;
+    const gap = this.settingBtnSize.gap;
+    const startX = (SCREEN_WIDTH - buttonWidth) / 2;
+    const startY = SCREEN_HEIGHT / 2 - buttonHeight - gap / 2;
+
+    // 存储按钮位置信息
+    this.settingButtons = [
+      {
+        text: '我的战绩',
+        startX: startX,
+        startY: startY,
+        endX: startX + buttonWidth,
+        endY: startY + buttonHeight
+      },
+      {
+        text: '今日最强',
+        startX: startX,
+        startY: startY + buttonHeight + gap,
+        endX: startX + buttonWidth,
+        endY: startY + buttonHeight * 2 + gap
+      }
+    ];
+
+    // 绘制按钮
+    this.settingButtons.forEach(button => {
+      // 添加阴影效果
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+
+      // 绘制按钮背景
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(button.startX, button.startY, buttonWidth, buttonHeight);
+
+      // 添加按钮边框
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(button.startX, button.startY, buttonWidth, buttonHeight);
+
+      // 绘制按钮文字
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = '#FFFFFF';
+      this.setFont(ctx);
+      ctx.fillText(
+        button.text,
+        button.startX + (buttonWidth - ctx.measureText(button.text).width) / 2,
+        button.startY + 25
+      );
+    });
+
+    // 添加退出按钮
+    this.drawExitButton(ctx);
+  }
+
+  drawExitButton(ctx) {
+    // 添加退出按钮
+    const exitButtonWidth = 100;
+    const exitButtonHeight = 40;
+    const exitButtonX = (SCREEN_WIDTH - exitButtonWidth) / 2;
+    const exitButtonY = SCREEN_HEIGHT - exitButtonHeight - 20;
+
+    this.exitButton = {
+        startX: exitButtonX,
+        startY: exitButtonY,
+        endX: exitButtonX + exitButtonWidth,
+        endY: exitButtonY + exitButtonHeight
+    };
+
+    // 添加退出按钮的阴影效果
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    // 绘制半透明的退出按钮
+    ctx.fillStyle = 'rgba(255, 59, 48, 0.7)';
+    ctx.fillRect(exitButtonX, exitButtonY, exitButtonWidth, exitButtonHeight);
+
+    // 添加退出按钮边框
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.strokeRect(exitButtonX, exitButtonY, exitButtonWidth, exitButtonHeight);
+
+    // 重置阴影效果
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 绘制退出按钮文本（带阴影）
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('退出', exitButtonX + 30, exitButtonY + 25);
+
+    // 最后重置所有效果
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1;
+  }
+
   touchEventHandler(event) {
     const { clientX, clientY } = event.touches[0];
 
+    // 检查是否点击了设置按钮
+    if (!this.showSettingFlag && 
+        this.navigationBar.checkSettingClick(clientX, clientY)) {
+        this.showSettingFlag = true;
+        GameGlobal.main.pauseGame();
+        return;
+    }
+
     // 检查是否点击了关卡文本
     if (!this.showLevelSelectFlag && 
-        clientX >= this.levelTextArea.startX &&
-        clientX <= this.levelTextArea.endX &&
-        clientY >= this.levelTextArea.startY &&
-        clientY <= this.levelTextArea.endY) {
+        this.navigationBar.checkLevelTextClick(clientX, clientY)) {
         this.showLevelSelectFlag = true;
         GameGlobal.main.pauseGame();
         return;
     }
 
+    // 处理设置界面的按钮点击
+    if (this.showSettingFlag && this.settingButtons) {
+        // 检查是否点击了退出按钮
+        if (this.exitButton &&
+            clientX >= this.exitButton.startX &&
+            clientX <= this.exitButton.endX &&
+            clientY >= this.exitButton.startY &&
+            clientY <= this.exitButton.endY) {
+            this.showSettingFlag = false;
+            this.handleExit();
+            return;
+        }
+
+        // 检查是否点击了设置按钮
+        const clickedButton = this.settingButtons.find(btn => 
+            clientX >= btn.startX &&
+            clientX <= btn.endX &&
+            clientY >= btn.startY &&
+            clientY <= btn.endY
+        );
+
+        if (clickedButton) {
+            if (clickedButton.text === '我的战绩') {
+                this.dataManager.getMyScores()
+                    .then(scores => {
+                        console.log('我的战绩:', scores);
+                        // TODO: 显示战绩界面
+                    })
+                    .catch(err => {
+                        console.error('获取战绩失败:', err);
+                    });
+            } else if (clickedButton.text === '今日最强') {
+                this.dataManager.getTodayTopScores()
+                    .then(scores => {
+                        console.log('今日最强:', scores);
+                        // TODO: 显示排行榜界面
+                    })
+                    .catch(err => {
+                        console.error('获取排行榜失败:', err);
+                    });
+            }
+        }
+    }
+
+    // 处理关卡选择界面的按钮点击
     if (this.showLevelSelectFlag) {
         // 检查是否点击了退出按钮
         if (this.exitButton &&
@@ -372,19 +543,7 @@ export default class GameInfo extends Emitter {
             clientY >= this.exitButton.startY &&
             clientY <= this.exitButton.endY) {
             this.showLevelSelectFlag = false;
-            this.showCountdown = true;
-            this.countdown = 3;
-            
-            // 开始倒计时
-            const countdownInterval = setInterval(() => {
-              this.countdown -= 1/60; // 假设60帧每秒
-              if (this.countdown <= 0) {
-                clearInterval(countdownInterval);
-                this.showCountdown = false;
-                GameGlobal.main.resumeGame();
-              }
-            }, 1000/60);
-            
+            this.handleExit();
             return;
         }
 
@@ -424,5 +583,27 @@ export default class GameInfo extends Emitter {
         this.emit('restart');
       }
     }
+  }
+
+  // 添加新方法处理退出逻辑
+  handleExit() {
+    // 如果游戏还未开始（显示健康游戏忠告），直接恢复
+    if (this.showHealthAdviceFlag) {
+        GameGlobal.main.resumeGame();
+        return;
+    }
+
+    // 游戏已经开始，显示倒计时
+    this.showCountdown = true;
+    this.countdown = 3;
+    
+    const countdownInterval = setInterval(() => {
+        this.countdown -= 1/60;
+        if (this.countdown <= 0) {
+            clearInterval(countdownInterval);
+            this.showCountdown = false;
+            GameGlobal.main.resumeGame();
+        }
+    }, 1000/60);
   }
 }
